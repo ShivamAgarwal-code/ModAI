@@ -1,0 +1,22 @@
+1. Basic idea of meme generation:
+
+User -> Context of meme (text, images (for extending context)) -> MemeRequest
+
+2. Turn user request into initial meme idea:
+
+MemeRequest -> (Meme Features + Meme Categories + Meme Strategies + Contexts ) -> InitialMemeStructure
+
+3. Turn initial meme idea into meme version:
+
+InitialMemeStructure -> searching in Template DB -> merging with templates -> PreMemeStructure
+
+4. Turn PreMemeStructure into Meme:
+
+PreMemeStructure -> processing with ImgFlip API -> Meme
+
+5. Final:
+
+sending back Meme to user
+
+
+

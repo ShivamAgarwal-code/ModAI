@@ -1,0 +1,22 @@
+default:
+  just --list
+
+u:
+  docker compose up -d
+
+k:
+  docker compose kill
+
+b:
+  docker compose build
+
+ps:
+  docker compose ps
+
+lc:
+  poetry run ruff check
+
+lf:
+  poetry run ruff format
+
+# examples:

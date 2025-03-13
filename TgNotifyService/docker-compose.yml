@@ -1,0 +1,45 @@
+version: '3.7'
+
+services:
+  app:
+    container_name: app
+    image: app_image
+    env_file:
+      - .env
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/src/src
+      - ./scripts:/src/scripts
+      - ./pyproject.toml:/src/pyproject.toml
+      - ./poetry.lock:/src/poetry.lock
+      - poetry_cache:/src/.cache
+    ports:
+      - "16000:8000"
+    command: ./scripts/start-dev.sh
+    depends_on:
+      - app_redis
+    networks:
+      - cow-service-network
+
+  app_redis:
+    image: redis:6.2-alpine
+    hostname: redis
+    container_name: app_redis
+    command:
+      - 'redis-server'
+      - '--requirepass myStrongPassword'
+    ports:
+      - 36379:6379
+    networks:
+      - cow-service-network
+
+volumes:
+  poetry_cache:
+    driver: "local"
+
+networks:
+  cow-service-network:
+    driver: bridge
+    name: cow-service-network

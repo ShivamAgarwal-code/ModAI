@@ -1,0 +1,564 @@
+openapi: 3.0.0
+info:
+  title: SafeCow Service API
+  version: 1.0.0
+  description: API for managing Safe transactions and CowSwap orders
+
+servers:
+  - url: /api
+    description: Local development server
+
+paths:
+  /cowswap/create:
+    post:
+      summary: Create a new swap order
+      operationId: createSwapOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - amount
+                - tokenAddress
+                - operation
+              properties:
+                amount:
+                  type: string
+                  description: Amount in wei
+                tokenAddress:
+                  type: string
+                  description: Token contract address
+                operation:
+                  type: string
+                  enum: [buy, sell]
+                  description: Swap operation type
+      responses:
+        '200':
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    type: string
+        '400':
+          description: Invalid request parameters
+        '500':
+          description: Error creating order
+
+  /cowswap/sign_order:
+    post:
+      summary: Sign a swap order
+      operationId: signSwapOrder
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - orderId
+              properties:
+                orderId:
+                  type: string
+                  description: CoW Protocol order ID
+      responses:
+        '200':
+          description: Order signed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  safeTxHash:
+                    type: string
+                  safeTx:
+                    type: object
+                    properties:
+                      to:
+                        type: string
+                      value:
+                        type: string
+                      data:
+                        type: string
+                      operation:
+                        type: number
+        '400':
+          description: Invalid order ID
+        '500':
+          description: Error signing order
+
+  /cowswap/orders:
+    get:
+      summary: Get all orders
+      operationId: getOrders
+      description: Get all orders and their trades for the Safe account
+      responses:
+        '200':
+          description: Orders retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        order:
+                          type: object
+                          properties:
+                            uid:
+                              type: string
+                            status:
+                              type: string
+                            creationDate:
+                              type: string
+                            sellToken:
+                              type: string
+                            buyToken:
+                              type: string
+                            sellAmount:
+                              type: string
+                            buyAmount:
+                              type: string
+                            validTo:
+                              type: number
+                            executedSellAmount:
+                              type: string
+                            executedBuyAmount:
+                              type: string
+                            receiver:
+                              type: string
+                        trades:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              blockNumber:
+                                type: number
+                              orderUid:
+                                type: string
+                              sellAmount:
+                                type: string
+                              buyAmount:
+                                type: string
+                              sellToken:
+                                type: string
+                              buyToken:
+                                type: string
+        '500':
+          description: Error retrieving orders
+
+  /test:
+    get:
+      summary: Test WETH to COW swap
+      operationId: testSwap
+      description: Creates, signs, and executes a test swap order of WETH for COW tokens
+      responses:
+        '200':
+          description: Swap executed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  orderId:
+                    type: string
+                    description: CoW Protocol order ID
+                  safeTxHash:
+                    type: string
+                    description: Safe transaction hash
+                  txHash:
+                    type: string
+                    description: Blockchain transaction hash
+        '500':
+          description: Error executing swap
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /safe/status:
+    get:
+      summary: Check Safe transaction status
+      operationId: checkSafeStatus
+      parameters:
+        - in: query
+          name: safeTxHash
+          required: true
+          schema:
+            type: string
+          description: Safe transaction hash to check
+      responses:
+        '200':
+          description: Transaction status retrieved successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [pending]
+                      transaction:
+                        type: object
+                        properties:
+                          safeTxHash:
+                            type: string
+                          confirmations:
+                            type: number
+                          threshold:
+                            type: number
+                          isExecutable:
+                            type: boolean
+                  - type: object
+                    properties:
+                      status:
+                        type: string
+                        enum: [unknown]
+                      message:
+                        type: string
+        '400':
+          description: Missing safeTxHash parameter
+        '500':
+          description: Internal server error
+
+  /safe/balance:
+    get:
+      summary: Get Safe balances
+      operationId: getSafeBalances
+      description: Returns the native token and ERC20 token balances of the Safe
+      responses:
+        '200':
+          description: Balances retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  address:
+                    type: string
+                    description: Safe address
+                  nativeBalance:
+                    type: string
+                    description: Native token (ETH) balance in wei
+                  tokens:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tokenAddress:
+                          type: string
+                          description: Token contract address
+                        balance:
+                          type: string
+                          description: Token balance in base units
+                        token:
+                          type: object
+                          properties:
+                            name:
+                              type: string
+                            symbol:
+                              type: string
+                            decimals:
+                              type: integer
+                            logoUri:
+                              type: string
+        '500':
+          description: Error retrieving balances
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    
+  /enso:
+    get:
+      summary: Calculate optimal swap route
+      operationId: getSwapRoute
+      description: Calculate the optimal route for swapping tokens using Enso Finance
+      parameters:
+        - in: query
+          name: tokenIn
+          required: true
+          schema:
+            type: string
+          description: Token address to swap from
+        - in: query
+          name: tokenOut
+          required: true
+          schema:
+            type: string
+          description: Token address to swap to
+        - in: query
+          name: amountIn
+          required: true
+          schema:
+            type: string
+          description: Amount of tokenIn to swap (in wei)
+      responses:
+        '200':
+          description: Route calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  route:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        action:
+                          type: string
+                        protocol:
+                          type: string
+                        tokenIn:
+                          type: array
+                          items:
+                            type: string
+                        tokenOut:
+                          type: array
+                          items:
+                            type: string
+                  gas:
+                    type: string
+                    description: Estimated gas cost
+                  amountOut:
+                    type: string
+                    description: Expected output amount
+                  priceImpact:
+                    type: string
+                    description: Price impact in basis points
+                  transaction:
+                    type: object
+                    properties:
+                      to:
+                        type: string
+                      data:
+                        type: string
+                      value:
+                        type: string
+        '400':
+          description: Missing required parameters
+        '500':
+          description: Error calculating route
+
+  /enso/quote:
+    get:
+      summary: Get swap quote
+      operationId: getSwapQuote
+      description: Get estimated output amount for a token swap without requiring funds
+      parameters:
+        - in: query
+          name: tokenIn
+          required: true
+          schema:
+            type: string
+          description: Token address to swap from
+        - in: query
+          name: tokenOut
+          required: true
+          schema:
+            type: string
+          description: Token address to swap to
+        - in: query
+          name: amountIn
+          required: true
+          schema:
+            type: string
+          description: Amount of tokenIn to swap (in wei)
+      responses:
+        '200':
+          description: Quote calculated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gas:
+                    type: string
+                    description: Estimated gas cost
+                  amountOut:
+                    type: string
+                    description: Expected output amount
+                  priceImpact:
+                    type: number
+                    description: Price impact percentage
+        '400':
+          description: Missing required parameters
+        '500':
+          description: Error calculating quote
+
+  /enso/bundle:
+    post:
+      summary: Execute bundle of DeFi actions
+      operationId: executeBundleActions
+      description: Execute multiple DeFi actions in a single transaction using Enso Finance
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  - protocol
+                  - action
+                  - args
+                properties:
+                  protocol:
+                    type: string
+                    description: Protocol name (e.g. "enso", "aave-v3")
+                  action:
+                    type: string
+                    description: Action name (e.g. "route", "deposit")
+                  args:
+                    type: object
+                    description: Action-specific arguments
+      responses:
+        '200':
+          description: Bundle transaction created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  route:
+                    type: array
+                    items:
+                      type: object
+                  gas:
+                    type: string
+                    description: Estimated gas cost
+                  safeTxHash:
+                    type: string
+                    description: Safe transaction hash
+                  transaction:
+                    type: object
+                    properties:
+                      to:
+                        type: string
+                      value:
+                        type: string
+                      data:
+                        type: string
+                      operation:
+                        type: number
+        '400':
+          description: Invalid request body
+        '500':
+          description: Error executing bundle
+
+  /safe/confirm:
+    post:
+      summary: Confirm a pending Safe transaction
+      operationId: confirmSafeTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - signer
+                - safeAddress
+                - safeTxHash
+              properties:
+                signer:
+                  type: string
+                  description: Private key or signer for the Safe owner
+                safeAddress:
+                  type: string
+                  description: Address of the Safe contract
+                safeTxHash:
+                  type: string
+                  description: Hash of the Safe transaction to confirm
+      responses:
+        '200':
+          description: Transaction confirmed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  txResult:
+                    type: object
+                    description: Result of the confirmation transaction
+        '400':
+          description: Missing required parameters
+        '404':
+          description: Transaction not found in pending transactions
+        '500':
+          description: Error confirming transaction
+
+  /safe/create_tx:
+    post:
+      summary: Create and sign a Safe transaction
+      operationId: createSafeTransaction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - to
+                - value
+                - data
+              properties:
+                to:
+                  type: string
+                  description: Destination address for the transaction
+                value:
+                  type: string
+                  description: ETH value in wei
+                data:
+                  type: string
+                  description: Transaction data (hex)
+      responses:
+        '200':
+          description: Transaction created and signed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  safeTxHash:
+                    type: string
+                    description: Safe transaction hash
+                  safeTx:
+                    type: object
+                    properties:
+                      to:
+                        type: string
+                      value:
+                        type: string
+                      data:
+                        type: string
+                      operation:
+                        type: number
+                  signature:
+                    type: string
+                    description: Agent's signature
+        '400':
+          description: Missing required parameters
+        '500':
+          description: Error creating transaction
+
+components:
+  schemas: {} 
